@@ -1,6 +1,6 @@
 class GameState:
     def __init__(self, players=None, phase="picking", timeRemaining=1):
-        self.players = players or {}
+        self.players = {}
         self.phase = phase
         self.timeRemaining = timeRemaining
 

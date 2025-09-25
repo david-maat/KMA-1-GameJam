@@ -4,6 +4,8 @@ import threading
 import json
 import time
 from gamestate import GameState
+from utils.constants import EventTypes
+
 
 class GameServer:
     def __init__(self, host="0.0.0.0", port=5555, tick_rate=20):
@@ -60,6 +62,7 @@ class GameServer:
         try:
             payload = json.loads(msg)
             self._process_action(conn, payload)
+            print("received: ", payload)
         except Exception as e:
             print(f"[SERVER] Invalid message: {e}")
 
@@ -68,16 +71,14 @@ class GameServer:
         player_id = str(id(conn))  # simple unique ID based on connection
         with self.lock:
             if player_id not in self.game_state.players:
-                self.game_state.players[player_id] = {"pos": [100, 100]}  # default pos
+                self.game_state.players[player_id] = {EventTypes.SELECTION_MADE: False, EventTypes.BATTLE_FINISHED: False}  # default pos
 
-            if data.get("action") == "move_left":
-                self.game_state.players[player_id]["pos"][0] -= 5
-            elif data.get("action") == "move_right":
-                self.game_state.players[player_id]["pos"][0] += 5
-            elif data.get("action") == "move_up":
-                self.game_state.players[player_id]["pos"][1] -= 5
-            elif data.get("action") == "move_down":
-                self.game_state.players[player_id]["pos"][1] += 5
+            if data.get("action") == EventTypes.SELECTION_MADE:
+                self.game_state.players[player_id][EventTypes.SELECTION_MADE] = True
+
+
+            elif data.get("action") == EventTypes.BATTLE_FINISHED:
+                self.game_state.players[player_id][EventTypes.BATTLE_FINISHED] = True
 
     # -------------------
     # GAME LOOP
@@ -93,13 +94,29 @@ class GameServer:
             self.game_state.timeRemaining -= elapsed
 
             # Handle phase transitions
-            if self.game_state.phase == "picking" and self.game_state.timeRemaining <= 0:
-                self.game_state.phase = "battle"
-                self.game_state.timeRemaining = 10
+            if self.game_state.phase == "picking":
+                print("picking")
+                amount_done = 0
+                for player in self.game_state.players.values():
+                    if player[EventTypes.SELECTION_MADE]:
+                        amount_done += 1
+                if amount_done == 2 or self.game_state.timeRemaining < 0:
+                    for player in self.game_state.players.values():
+                        player[EventTypes.SELECTION_MADE] = False
+                    self.game_state.phase = "battle"
+                    self.game_state.timeRemaining = -1
+            elif self.game_state.phase == "battle":
+                print("battle")
 
-            elif self.game_state.phase == "battle" and self.game_state.timeRemaining <= 0:
-                self.game_state.phase = "picking"
-                self.game_state.timeRemaining = 30
+                amount_done = 0
+                for player in self.game_state.players.values():
+                    if player[EventTypes.BATTLE_FINISHED]:
+                        amount_done += 1
+                if amount_done == 2:
+                    self.game_state.phase = "picking"
+                    self.game_state.timeRemaining = 30
+                    for player in self.game_state.players.values():
+                        player[EventTypes.BATTLE_FINISHED] = False
 
     def _broadcast_loop(self):
         while self.running:

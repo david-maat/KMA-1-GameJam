@@ -3,6 +3,39 @@ import sys
 import random
 
 from multiplayer import client
+from utils.constants import EventTypes
+
+
+# --- Button class ---
+class Button:
+    def __init__(self, x, y, w, h, text, callback, color=(70, 130, 180), hover_color=(100, 160, 210)):
+        self.rect = pygame.Rect(x, y, w, h)
+        self.text = text
+        self.callback = callback
+        self.color = color
+        self.hover_color = hover_color
+
+    def draw(self, surface):
+        mouse_pos = pygame.mouse.get_pos()
+        if self.rect.collidepoint(mouse_pos):
+            pygame.draw.rect(surface, self.hover_color, self.rect)
+        else:
+            pygame.draw.rect(surface, self.color, self.rect)
+
+        pygame.draw.rect(surface, (0, 0, 0), self.rect, 2)  # border
+        text_surf = font.render(self.text, True, (255, 255, 255))
+        surface.blit(
+            text_surf,
+            (self.rect.centerx - text_surf.get_width() // 2,
+             self.rect.centery - text_surf.get_height() // 2)
+        )
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.rect.collidepoint(event.pos):
+                self.callback()
+
+
 
 client = client.GameClient()
 client.connect()
@@ -14,6 +47,27 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Extinct Animals - Arena")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("arial", 14)
+
+# --- Define button callbacks ---
+def send_ready():
+    client.send({"action": EventTypes.SELECTION_MADE})
+
+def send_battle_done():
+    client.send({"action": EventTypes.BATTLE_FINISHED})
+
+def send_end_turn():
+    client.send({"action": "end_turn"})
+
+# --- Create buttons ---
+buttons = [
+    Button(50, HEIGHT - 60, 120, 40, "Ready", send_ready),
+    Button(200, HEIGHT - 60, 120, 40, "Battle done", send_battle_done),
+    Button(350, HEIGHT - 60, 120, 40, "End Turn", send_end_turn),
+]
+
+
+
+
 
 # --- Achtergrond genereren ---
 def generate_mountains(layers=3):
@@ -170,10 +224,11 @@ while True:
     arena_y, shop_y = draw_background(screen)  # geeft Y-posities terug
 
     for event in pygame.event.get():
+        for button in buttons:
+            button.handle_event(event)
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
-
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             # check shop dinos
             for i, animal in enumerate(shop_dinos):
@@ -228,6 +283,9 @@ while True:
     # toon ronde nummer
     round_text = font.render(f"Ronde: {round_counter}", True, (0, 0, 0))
     screen.blit(round_text, (10, 10))
+
+    for button in buttons:
+        button.draw(screen)
 
     pygame.display.flip()
     clock.tick(60)
