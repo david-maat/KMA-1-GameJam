@@ -3,10 +3,10 @@ import threading
 import time
 import json
 from typing import Optional, Dict, Any
-
+from utils import constants
 
 class GameClient:
-    def __init__(self, tcp_host="127.0.0.1", tcp_port=12345, udp_port=12346):
+    def __init__(self, tcp_host="127.0.0.1", tcp_port=constants.TCP_PORT, udp_port=constants.UDP_PORT):
         self.tcp_host = tcp_host
         self.tcp_port = tcp_port
         self.udp_port = udp_port

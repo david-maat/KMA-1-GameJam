@@ -1,0 +1,3 @@
+
+TCP_PORT = 8000
+UDP_PORT = 8001
