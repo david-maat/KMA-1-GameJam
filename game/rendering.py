@@ -2,6 +2,11 @@ import pygame
 import sys
 import random
 
+from multiplayer import client
+
+client = client.GameClient()
+client.connect()
+
 # --- Setup ---
 pygame.init()
 WIDTH, HEIGHT = 800, 600
@@ -161,6 +166,7 @@ offset_y = 0
 MAX_ARENA = 6
 
 while True:
+    pygame.display.set_caption(str(client.game_state.to_dict()['timeRemaining']))
     arena_y, shop_y = draw_background(screen)  # geeft Y-posities terug
 
     for event in pygame.event.get():
