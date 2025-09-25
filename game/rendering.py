@@ -1,6 +1,8 @@
 import pygame
 import sys
 import random
+import ui
+
 
 # --- Setup ---
 pygame.init()
@@ -9,6 +11,8 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Extinct Animals - Arena")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("arial", 14)
+
+buttons = ui.create_ui_buttons()
 
 # --- Achtergrond genereren ---
 def generate_mountains(layers=3):
@@ -62,12 +66,14 @@ class ExtinctAnimal:
         self.name = name
         self.attack = attack
         self.hp = hp
+        self.max_hp = hp  # <-- voeg dit toe, max_hp = begin HP
         self.oil = oil
         self.color = color
         self.pos = list(pos)
         self.size = 25
         self.shape = shape
         self.dragging = False
+
 
     def draw(self, surface):
         x, y = self.pos
@@ -164,6 +170,9 @@ while True:
     arena_y, shop_y = draw_background(screen)  # geeft Y-posities terug
 
     for event in pygame.event.get():
+
+        ui.handle_ui_events(event, buttons)
+
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
@@ -218,6 +227,9 @@ while True:
         animal.draw(screen)
     for animal in arena_team:
         animal.draw(screen)
+
+        # HP-bars, oliepunten en knoppen tekenen
+        ui.draw_ui(screen, arena_team, buttons)
 
     # toon ronde nummer
     round_text = font.render(f"Ronde: {round_counter}", True, (0, 0, 0))
