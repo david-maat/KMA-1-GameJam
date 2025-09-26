@@ -27,6 +27,10 @@ battle_system = BattleSystem(breedte, hoogte)
 player_coins = 100  # Starting coins
 coin_font = pygame.font.SysFont("Arial", 36, bold=True)
 
+# CARBON TRACKING SYSTEM
+total_player_carbon = 0  # Persistent carbon across all battles
+total_enemy_carbon = 0   # Persistent carbon across all battles
+
 # init rendering (team build)
 rendering.init_rendering()
 
@@ -184,6 +188,10 @@ def result_screen(screen, team):
         screen.fill((50, 0, 0))  # Red for defeat
         result_text = "DEFEAT!"
         result_color = (255, 0, 0)
+    elif battle_system.battle_result == "world_ends":
+        screen.fill((20, 20, 20))  # Dark for world ending
+        result_text = "WORLD ENDS!"
+        result_color = (255, 100, 0)  # Orange/red
     else:
         screen.fill((50, 50, 0))  # Yellow for unknown
         result_text = "BATTLE COMPLETE"
@@ -246,6 +254,87 @@ def add_coins(amount):
     player_coins += amount
 
 
+def can_afford_anything():
+    """Check if player can afford any dinosaur in the shop"""
+    # Get the cheapest dinosaur price from the shop
+    min_price = float('inf')
+    for dino in rendering.shop_dinos:
+        if hasattr(dino, 'price'):
+            min_price = min(min_price, dino.price)
+    
+    # If no prices found, use default minimum
+    if min_price == float('inf'):
+        min_price = 15  # Default minimum price
+    
+    return player_coins >= min_price
+
+
+def carbon_to_tonnes(carbon_points):
+    """Convert carbon points to tonnes of CO2 for display"""
+    # Each carbon point represents 0.5 tonnes of CO2
+    return carbon_points * 0.5
+
+
+def game_over_screen(screen):
+    """Display game over screen with carbon footprint overview"""
+    
+    screen.fill((20, 20, 20))  # Dark background
+    
+    # Title
+    title_font = pygame.font.SysFont(None, 72, bold=True)
+    title_text = title_font.render("GAME OVER", True, (255, 100, 100))
+    screen.blit(title_text, (breedte // 2 - title_text.get_width() // 2, 100))
+    
+    # Subtitle
+    subtitle_font = pygame.font.SysFont(None, 36)
+    subtitle_text = subtitle_font.render("Not enough coins to continue!", True, (255, 255, 255))
+    screen.blit(subtitle_text, (breedte // 2 - subtitle_text.get_width() // 2, 180))
+    
+    # Carbon footprint overview
+    carbon_font = pygame.font.SysFont(None, 48, bold=True)
+    overview_font = pygame.font.SysFont(None, 32)
+    
+    # Header
+    carbon_header = carbon_font.render("CARBON FOOTPRINT OVERVIEW", True, (255, 200, 0))
+    screen.blit(carbon_header, (breedte // 2 - carbon_header.get_width() // 2, 250))
+    
+    # Player carbon
+    player_tonnes = carbon_to_tonnes(total_player_carbon)
+    player_text = overview_font.render(f"Your Carbon Emissions: {player_tonnes:.1f} tonnes CO2", True, (255, 100, 100))
+    screen.blit(player_text, (breedte // 2 - player_text.get_width() // 2, 320))
+    
+    # Enemy carbon
+    enemy_tonnes = carbon_to_tonnes(total_enemy_carbon)
+    enemy_text = overview_font.render(f"Enemy Carbon Emissions: {enemy_tonnes:.1f} tonnes CO2", True, (255, 100, 100))
+    screen.blit(enemy_text, (breedte // 2 - enemy_text.get_width() // 2, 360))
+    
+    # Total carbon
+    total_tonnes = player_tonnes + enemy_tonnes
+    total_text = carbon_font.render(f"TOTAL: {total_tonnes:.1f} tonnes CO2", True, (255, 50, 50))
+    screen.blit(total_text, (breedte // 2 - total_text.get_width() // 2, 420))
+    
+    # Environmental message
+    if total_tonnes > 10:
+        message = "Catastrophic environmental damage!"
+        color = (255, 0, 0)
+    elif total_tonnes > 5:
+        message = "Significant environmental impact"
+        color = (255, 100, 0)
+    else:
+        message = "Moderate environmental impact"
+        color = (255, 200, 0)
+    
+    message_text = overview_font.render(message, True, color)
+    screen.blit(message_text, (breedte // 2 - message_text.get_width() // 2, 480))
+    
+    # Instructions
+    instruction_text = overview_font.render("Press ENTER to return to menu", True, (255, 255, 255))
+    screen.blit(instruction_text, (breedte // 2 - instruction_text.get_width() // 2, 550))
+    
+    # Show current coins
+    draw_coin_display(screen)
+
+
 # Main loop
 running = True
 arena_y, shop_y = None, None
@@ -264,6 +353,10 @@ while running:
                 if battle_system.battle_phase == "battle_over":
                     current_state = GameState.RESULT
             elif current_state == GameState.RESULT and event.key == pygame.K_RETURN:
+                # Add battle carbon to persistent totals
+                total_player_carbon += battle_system.player_carbon
+                total_enemy_carbon += battle_system.enemy_carbon
+                
                 # Return to shop and reflect battle results
                 # Remove dead dinos from arena team
                 try:
@@ -277,7 +370,20 @@ while running:
                     rendering.reorder_arena(local_arena_y)
                 except Exception:
                     pass
-                current_state = GameState.SHOP
+                
+                # Check if player can afford anything
+                if not can_afford_anything():
+                    current_state = GameState.GAME_OVER
+                else:
+                    current_state = GameState.SHOP
+                gekozen_team = None
+            elif current_state == GameState.GAME_OVER and event.key == pygame.K_RETURN:
+                # Reset game and return to menu
+                total_player_carbon = 0
+                total_enemy_carbon = 0
+                player_coins = 100
+                rendering.arena_team = []
+                current_state = GameState.MENU
                 gekozen_team = None
 
             # Cheat codes for testing (remove in final version)
@@ -315,6 +421,9 @@ while running:
                     starting_player = random.choice([0, 1])
                     # Start battle with random enemy team and selected starter
                     battle_system.start_battle(player_team_obj, starting_player=starting_player)
+                    # Set persistent carbon values
+                    battle_system.player_carbon = total_player_carbon
+                    battle_system.enemy_carbon = total_enemy_carbon
 
                     # Transition text uses 1/2 for readability
                     human_player_num = 1 if starting_player == 0 else 2
@@ -346,9 +455,14 @@ while running:
                 # Small consolation prize
                 coins_earned = random.randint(5, 15)
                 add_coins(coins_earned)
+            elif battle_system.battle_result == "world_ends":
+                # No coins when world ends - everyone loses
+                pass
             battle_system.coins_awarded = True  # Mark as awarded
     elif current_state == GameState.RESULT:
         result_screen(screen, gekozen_team)
+    elif current_state == GameState.GAME_OVER:
+        game_over_screen(screen)
 
     pygame.display.flip()
     clock.tick(60)

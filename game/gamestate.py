@@ -7,3 +7,4 @@ class GameState(Enum):
     TRANSITION = 4
     BATTLE = 5
     RESULT = 6
+    GAME_OVER = 7
