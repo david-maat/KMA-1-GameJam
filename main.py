@@ -54,21 +54,102 @@ def draw_coin_display(screen):
 
 
 def menu_screen(screen):
-    screen.fill((0, 0, 50))
-    text = font.render("MENU - Press Enter", True, (255, 255, 255))
-    screen.blit(text, (breedte // 2 - text.get_width() // 2, hoogte // 2 - 24))
+    # Load and scale the background image
+    try:
+        background_image = pygame.image.load("assets/menu.png")
+        scaled_bg = pygame.transform.scale(background_image, (breedte, hoogte))
+        screen.blit(scaled_bg, (0, 0))
+    except pygame.error:
+        # Fallback if image can't be loaded
+        screen.fill((0, 0, 50))
+
+    # Create fonts with Comic Sans style
+    title_font = pygame.font.SysFont("comicsansms", 72, bold=True)  # Larger Comic Sans font
+    subtitle_font = pygame.font.SysFont("comicsansms", 36)  # Comic Sans for subtitle
+
+    # Main title text
+    title_text = "Title"
+    title_shadow = title_font.render(title_text, True, (0, 0, 0))  # Black shadow
+    title_main = title_font.render(title_text, True, (255, 255, 255))  # White text
+
+    # Shadow offset
+    shadow_offset = 3
+    title_x = breedte // 2 - title_main.get_width() // 2
+    title_y = hoogte // 3  # Position in upper third of screen
+    screen.blit(title_shadow, (title_x + shadow_offset, title_y + shadow_offset))
+    screen.blit(title_main, (title_x, title_y))
+
+    # Subtitle/instruction text
+    subtitle_text = "Press Enter"
+    subtitle_shadow = subtitle_font.render(subtitle_text, True, (0, 0, 0))  # Black shadow
+    subtitle_main = subtitle_font.render(subtitle_text, True, (200, 200, 200))  # Light gray text
+    subtitle_x = breedte // 2 - subtitle_main.get_width() // 2
+    subtitle_y = title_y + title_main.get_height() + 30  # 30 pixels below title
+    screen.blit(subtitle_shadow, (subtitle_x + shadow_offset, subtitle_y + shadow_offset))
+    screen.blit(subtitle_main, (subtitle_x, subtitle_y))
 
     # Show coins in menu
     draw_coin_display(screen)
 
 
 def team_select_screen(screen):
-    pygame.draw.rect(screen, (0, 0, 150), (0, 0, breedte // 2, hoogte))
-    pygame.draw.rect(screen, (150, 0, 0), (breedte // 2, 0, breedte // 2, hoogte))
-    tekst_links = font.render("Team Blauw", True, (255, 255, 255))
-    tekst_rechts = font.render("Team Rood", True, (255, 255, 255))
-    screen.blit(tekst_links, (breedte // 4 - 100, hoogte // 2 - 24))
-    screen.blit(tekst_rechts, (3 * breedte // 4 - 100, hoogte // 2 - 24))
+    # Load and draw background images for each team
+    try:
+        # Load blue team (jungle) background
+        bg_blauw = pygame.image.load("assets/classic.jpg")
+        scaled_bg_blauw = pygame.transform.scale(bg_blauw, (breedte // 2, hoogte))
+        screen.blit(scaled_bg_blauw, (0, 0))
+    except pygame.error:
+        # Fallback for blue team side
+        pygame.draw.rect(screen, (0, 0, 150), (0, 0, breedte // 2, hoogte))
+
+    try:
+        # Load red team (desert) background
+        bg_rood = pygame.image.load("assets/desert.jpg")
+        scaled_bg_rood = pygame.transform.scale(bg_rood, (breedte // 2, hoogte))
+        screen.blit(scaled_bg_rood, (breedte // 2, 0))
+    except pygame.error:
+        # Fallback for red team side
+        pygame.draw.rect(screen, (150, 0, 0), (breedte // 2, 0, breedte // 2, hoogte))
+
+    # Add main title text
+    title_font = pygame.font.SysFont("comicsansms", 60, bold=True)
+    title_text = "Select Your Team"
+    title_shadow = title_font.render(title_text, True, (0,0, 0))  # Dark gray shadow
+    title_main = title_font.render(title_text, True, (255, 255, 255))  # White text
+
+    # Center the title at top
+    title_x = breedte // 2 - title_main.get_width() // 2
+    title_y = 80
+    shadow_offset = 2
+
+    # Draw shadow first, then main text
+    screen.blit(title_shadow, (title_x + shadow_offset, title_y + shadow_offset))
+    screen.blit(title_main, (title_x, title_y))
+
+    # Team text fonts
+    team_font = pygame.font.SysFont("comicsansms", 50, bold=True)
+
+    # Team Jungle text with border effect
+    tekst_links_border = team_font.render("Team Jungle", True, (0, 100, 0))  # Darker jungle border
+    tekst_links = team_font.render("Team Jungle", True, (34, 139, 34))  # Jungle green main text
+
+    # Team Yellow text with border effect
+    tekst_rechts_border = team_font.render("Team Geel", True, (200, 190, 130))  # Darker border
+    tekst_rechts = team_font.render("Team Geel", True, (255, 243, 165))  # Main text
+
+    # Draw borders first (slightly offset)
+    border_offset = 2
+    left_x = breedte // 4 - tekst_links.get_width() // 2
+    right_x = 3 * breedte // 4 - tekst_rechts.get_width() // 2
+    team_y = hoogte // 2 - 24
+
+    screen.blit(tekst_links_border, (left_x + border_offset, team_y + border_offset))
+    screen.blit(tekst_rechts_border, (right_x + border_offset, team_y + border_offset))
+
+    # Draw main team texts over borders
+    screen.blit(tekst_links, (left_x, team_y))
+    screen.blit(tekst_rechts, (right_x, team_y))
 
     # Show coins in team select
     draw_coin_display(screen)
