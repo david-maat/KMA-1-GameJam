@@ -9,6 +9,7 @@ FPS = 60
 
 # --- Initialize ---
 pygame.init()
+pygame.mixer.init()  # initialize sound system
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Dino Death Animation with Swaying Skull")
 clock = pygame.time.Clock()
@@ -19,6 +20,10 @@ dino_rect = dino_image.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
 
 # Skull image
 skull_image_orig = pygame.image.load("../assets/skull.png").convert_alpha()
+
+# --- Load sounds ---
+death_sound = pygame.mixer.Sound("../assets/death.mp3")
+death_sound.set_volume(0.8)  # adjust volume (0.0 - 1.0)
 
 # --- Death animation state ---
 is_dead = False
@@ -45,6 +50,8 @@ def trigger_death():
     skull_timer = 0
     skull_alpha = 255
     skull_y = dino_rect.centery + 20  # start slightly below dino center
+    # Play death sound once
+    death_sound.play()
 
 
 # --- Main loop ---
@@ -56,7 +63,7 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_d:
+            if event.key == pygame.K_d and not is_dead:
                 trigger_death()  # press D to trigger death
 
     # --- Update animation ---
