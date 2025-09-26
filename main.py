@@ -156,8 +156,8 @@ def team_select_screen(screen):
     tekst_links = team_font.render("Team Jungle", True, (34, 139, 34))  # Jungle green main text
 
     # Team Yellow text with border effect
-    tekst_rechts_border = team_font.render("Team Geel", True, (200, 190, 130))  # Darker border
-    tekst_rechts = team_font.render("Team Geel", True, (255, 243, 165))  # Main text
+    tekst_rechts_border = team_font.render("Team Dessert", True, (200, 190, 130))  # Darker border
+    tekst_rechts = team_font.render("Team Dessert", True, (255, 243, 165))  # Main text
 
     # Draw borders first (slightly offset)
     border_offset = 2
@@ -177,41 +177,43 @@ def team_select_screen(screen):
 
 
 def result_screen(screen, team):
-    global player_coins
 
-    # Different background colors based on battle result
+
+    global player_coins
+    font = pygame.font.SysFont("comicsansms", 72, bold=True)  # Large bold font
+
+
+    # Classic victory/defeat colors
     if battle_system.battle_result == "player_wins":
-        screen.fill((0, 50, 0))  # Green for victory
+        screen.fill((0, 50, 0))  # Dark green background
         result_text = "VICTORY!"
-        result_color = (0, 255, 0)
+        result_color = (144, 238, 144)  # Gold text
     elif battle_system.battle_result == "enemy_wins":
-        screen.fill((50, 0, 0))  # Red for defeat
+        screen.fill((50, 0, 0))  # Dark red background
         result_text = "DEFEAT!"
-        result_color = (255, 0, 0)
+        result_color = (255, 50, 50)  # Bright red text
     elif battle_system.battle_result == "world_ends":
-        screen.fill((20, 20, 20))  # Dark for world ending
+        screen.fill((20, 20, 20))  # Dark gray
         result_text = "WORLD ENDS!"
-        result_color = (255, 100, 0)  # Orange/red
+        result_color = (255, 100, 0)
     else:
-        screen.fill((50, 50, 0))  # Yellow for unknown
+        screen.fill((50, 50, 0))  # Yellowish
         result_text = "BATTLE COMPLETE"
         result_color = (255, 255, 0)
 
-    # Display battle result
-    large_font = pygame.font.SysFont(None, 72, bold=True)
-    result_surface = large_font.render(result_text, True, result_color)
-    screen.blit(result_surface, (breedte // 2 - result_surface.get_width() // 2, hoogte // 2 - 100))
-    
-    # Display team info
-    team_text = font.render(f"Team: {team}", True, (255, 255, 255))
-    screen.blit(team_text, (100, hoogte // 2 - 24))
-    
-    instructie = font.render("Druk ENTER om terug naar menu te gaan", True, (255, 255, 0))
-    screen.blit(instructie, (50, hoogte // 2 + 50))
+    # Draw a simple glowing rectangle behind the text for a "classic" effect
+    text_surface = font.render(result_text, True, result_color)
+    text_rect = text_surface.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2))
 
-    # Show coins earned (already awarded during battle)
-    coins_text = font.render("Coins earned from battle!", True, (255, 215, 0))
-    screen.blit(coins_text, (50, hoogte // 2 + 100))
+    # Optional glowing effect
+    glow_color = (255, 255, 255, 50)  # semi-transparent white
+    for offset in range(5, 0, -1):
+        glow_surface = font.render(result_text, True, glow_color)
+        glow_rect = glow_surface.get_rect(center=(text_rect.centerx, text_rect.centery))
+        screen.blit(glow_surface, (glow_rect.x - offset, glow_rect.y - offset))
+        screen.blit(glow_surface, (glow_rect.x + offset, glow_rect.y + offset))
+
+    screen.blit(text_surface, text_rect)
 
     draw_coin_display(screen)
 
