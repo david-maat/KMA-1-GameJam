@@ -129,16 +129,18 @@ class BattleSystem:
         """Position dinosaurs on the battlefield"""
         # Position player team on the left
         if self.player_team.dinosaurs:
+            base_y = self.screen_height // 2
             for i, dino in enumerate(self.player_team.dinosaurs):
                 x = 150 + (i * 80)
-                y = self.screen_height // 2 + (i % 2) * 60 - 30
+                y = base_y
                 dino.pos = [x, y]
         
         # Position enemy team on the right
         if self.enemy_team.dinosaurs:
+            base_y = self.screen_height // 2
             for i, dino in enumerate(self.enemy_team.dinosaurs):
                 x = self.screen_width - 150 - (i * 80)
-                y = self.screen_height // 2 + (i % 2) * 60 - 30
+                y = base_y
                 dino.pos = [x, y]
     
     def add_to_log(self, message):
