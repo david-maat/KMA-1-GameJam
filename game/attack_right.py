@@ -7,9 +7,11 @@ SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 FPS = 60
 DAMAGE_DURATION = 500  # milliseconds
+DAMAGE_DELAY = 150     # delay after bite clamp before damage
 
 # --- Initialize ---
 pygame.init()
+pygame.mixer.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Dino Right Attack + Damage Animation")
 clock = pygame.time.Clock()
@@ -18,6 +20,10 @@ clock = pygame.time.Clock()
 dino_image = pygame.image.load("../assets/dino.png").convert_alpha()
 dino_image = pygame.transform.flip(dino_image, True, False)
 dino_rect = dino_image.get_rect(midbottom=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 50))
+
+# --- Load bite sound ---
+bite_sound = pygame.mixer.Sound("../assets/bite.mp3")
+bite_sound.set_volume(0.8)
 
 # --- Attack parameters ---
 is_attacking = False
@@ -33,6 +39,11 @@ dino_start_y = dino_rect.y
 # --- Damage parameters ---
 is_damaged = False
 damage_timer = 0
+damage_pending = False
+damage_delay_timer = 0
+
+# Track sound playback
+bite_sound_played = False
 
 # --- Bite effect ---
 def create_jaw_surface(width, height, num_teeth, inverted=False):
@@ -76,10 +87,11 @@ while running:
             running = False
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE and not is_attacking and not is_damaged:
-                # Start attack
                 is_attacking = True
                 attack_timer = 0
                 attack_phase = "jump_forward"
+                bite_sound_played = False
+                damage_pending = False
 
     # --- Update attack animation ---
     if is_attacking:
@@ -93,8 +105,14 @@ while running:
                 attack_timer = 0
             # Move right
             dino_rect.x = dino_start_x + attack_peak_offset * math.sin(t * math.pi / 2)
-            # Vertical jump arc
             dino_rect.y = dino_start_y - attack_height * math.sin(t * math.pi)
+
+            # Bite moment
+            if 0.45 <= t <= 0.5 and not bite_sound_played:
+                bite_sound.play()
+                bite_sound_played = True
+                damage_pending = True
+                damage_delay_timer = DAMAGE_DELAY
 
         elif attack_phase == "stay_forward":
             dino_rect.x = dino_start_x + attack_peak_offset
@@ -110,14 +128,18 @@ while running:
                 is_attacking = False
                 dino_rect.x = dino_start_x
                 dino_rect.y = dino_start_y
-                # Trigger damage animation after returning
-                is_damaged = True
-                damage_timer = DAMAGE_DURATION
             else:
                 dino_rect.x = dino_start_x + attack_peak_offset * (1 - t)
                 dino_rect.y = dino_start_y
 
-    # --- Update damage timer ---
+    # --- Handle delayed damage ---
+    if damage_pending and not is_damaged:
+        damage_delay_timer -= dt
+        if damage_delay_timer <= 0:
+            is_damaged = True
+            damage_timer = DAMAGE_DURATION
+            damage_pending = False
+
     if is_damaged:
         damage_timer -= dt
         if damage_timer <= 0:
@@ -126,7 +148,6 @@ while running:
     # --- Draw ---
     screen.fill((34, 139, 34))
 
-    # Draw dino (with red flash if damaged)
     if is_damaged:
         red_image = red_flash(dino_image, intensity=100)
         offset_x = 5 if (pygame.time.get_ticks() // 50) % 2 == 0 else -5
@@ -134,7 +155,7 @@ while running:
     else:
         screen.blit(dino_image, dino_rect.topleft)
 
-    # Draw bite effect during attack peak
+    # Bite effect during attack peak
     if is_attacking and attack_phase == "jump_forward" and 0.45 <= attack_timer / attack_duration <= 0.65:
         t_clamp = (attack_timer / attack_duration - 0.45) / 0.2
         jaw_offset = jaw_height * (1 - t_clamp)
