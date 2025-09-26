@@ -68,6 +68,18 @@ def menu_screen(screen):
         # Fallback if image can't be loaded
         screen.fill((0, 0, 50))
 
+    # Load and draw logo in top left corner
+    try:
+        logo_image = pygame.image.load("assets/logo.png")
+        # Scale logo to be small (adjust size as needed)
+        logo_size = 55  # You can adjust this value to make it smaller/larger
+        scaled_logo = pygame.transform.scale(logo_image, (logo_size, logo_size))
+        # Position in top left with small padding
+        screen.blit(scaled_logo, (15, 15))
+    except pygame.error:
+        # If logo can't be loaded, you could draw a placeholder or just skip
+        pass
+
     # Create fonts with Comic Sans style
     title_font = pygame.font.SysFont("comicsansms", 72, bold=True)  # Larger Comic Sans font
     subtitle_font = pygame.font.SysFont("comicsansms", 36)  # Comic Sans for subtitle
