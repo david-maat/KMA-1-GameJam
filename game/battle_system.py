@@ -1,6 +1,7 @@
 import pygame
 import random
 import time
+import math
 from game.dinosaur import DinoSprite
 from game.team import Team
 
@@ -16,6 +17,27 @@ class BattleSystem:
         self.animation_timer = 0
         self.battle_result = None  # "player_wins", "enemy_wins", "world_ends", None
         self.turn_delay = 0
+        
+        # Attack animation state
+        self.attack_anim = {
+            'active': False,
+            'attacker': None,
+            'target': None,
+            'dir': 1,  # 1 = to right, -1 = to left
+            'elapsed': 0,  # frames elapsed in current attack
+            'move_frames': 30,
+            'stay_frames': 12,
+            'return_frames': 30,
+            'peak_offset': 120,
+            'height': 60,
+            'damage_pending': False,
+            'damage_delay': 9,  # frames after bite to apply damage
+            'damage_delay_left': 0,
+            'damage_applied': False,
+            'attacker_start': (0, 0),
+        }
+        # Prebuild jaw bite surfaces
+        self._bite_upper, self._bite_lower = self._build_jaw_surfaces(120, 30, 8)
         
         # Carbon meter system
         self.max_carbon = 20  # Maximum carbon before world ends
@@ -154,35 +176,26 @@ class BattleSystem:
         return
     
     def execute_attack(self, attacker, target):
-        """Execute an attack between two dinosaurs"""
-        if not attacker.is_alive() or not target.is_alive():
+        """Begin an animated attack (jump forward, bite, delay, return)."""
+        if not attacker.is_alive() or not target.is_alive() or self.attack_anim['active']:
             return
         
-        # Calculate damage with some randomness
-        base_damage = attacker.atk
-        damage = random.randint(int(base_damage * 0.8), int(base_damage * 1.2))
-        # Guarantee at least 1 damage so battles always progress
-        damage = max(1, damage)
-        
-        # Apply damage
-        target.take_damage(damage)
-        
-        self.add_to_log(f"{attacker.name} attacks {target.name} for {damage} damage!")
-        
-        if not target.is_alive():
-            self.add_to_log(f"{target.name} has been defeated!")
-            # Add carbon based on the dead dinosaur's max HP
-            carbon_added = target.max_hp
-            if self.current_turn == 0:  # Player killed enemy dino
-                self.player_carbon += carbon_added
-                self.add_to_log(f"Player carbon +{carbon_added} (total: {self.player_carbon})")
-            else:  # Enemy killed player dino
-                self.enemy_carbon += carbon_added
-                self.add_to_log(f"Enemy carbon +{carbon_added} (total: {self.enemy_carbon})")
-        
-        # Start attack animation
+        # Initialize animation state
+        ax, ay = attacker.pos
+        tx, ty = target.pos
+        direction = 1 if tx >= ax else -1
+        self.attack_anim.update({
+            'active': True,
+            'attacker': attacker,
+            'target': target,
+            'dir': direction,
+            'elapsed': 0,
+            'damage_pending': False,
+            'damage_delay_left': 0,
+            'damage_applied': False,
+            'attacker_start': (ax, ay),
+        })
         self.battle_phase = "attacking"
-        self.animation_timer = 50  # slower: 50 frames of animation
 
     def auto_take_turn(self):
         """Perform one automatic turn where front dinosaurs attack each other in order"""
@@ -214,25 +227,42 @@ class BattleSystem:
                 return
             self.auto_take_turn()
 
-        # Handle animations
-        if self.animation_timer > 0:
-            self.animation_timer -= 1
-            if self.animation_timer == 0:
-                # Animation finished, check battle state
-                if self.check_battle_end():
-                    return
-                
-                # Switch turns and add a brief delay
-                if self.current_turn == 0:
-                    self.current_turn = 1
-                else:
-                    self.current_turn = 0
+        # Handle attack animation timeline
+        if self.battle_phase == "attacking" and self.attack_anim['active']:
+            a = self.attack_anim
+            a['elapsed'] += 1
+            move_frames = a['move_frames']
+            stay_frames = a['stay_frames']
+            return_frames = a['return_frames']
+            total_frames = move_frames + stay_frames + return_frames
+
+            # Bite window during forward move
+            if a['elapsed'] <= move_frames:
+                t = a['elapsed'] / move_frames
+                if 0.45 <= t <= 0.5 and not a['damage_pending']:
+                    # Schedule delayed damage application
+                    a['damage_pending'] = True
+                    a['damage_delay_left'] = a['damage_delay']
+            
+            # Countdown pending damage and apply once
+            if a['damage_pending']:
+                if a['damage_delay_left'] > 0:
+                    a['damage_delay_left'] -= 1
+                elif not a['damage_applied']:
+                    self._apply_attack_damage(a['attacker'], a['target'])
+                    a['damage_applied'] = True
+            
+            # End of animation
+            if a['elapsed'] >= total_frames:
+                self.attack_anim['active'] = False
                 self.battle_phase = "idle"
-                self.turn_delay = 40  # slower delay between turns
-                
-                # Reset selections
+                # Switch turn
+                self.current_turn = 1 - self.current_turn
+                self.turn_delay = 40
                 self.selected_attacker = None
                 self.selected_target = None
+                # Check battle end immediately after animation
+                self.check_battle_end()
         
     
     def check_battle_end(self):
@@ -261,6 +291,96 @@ class BattleSystem:
         
         return False
     
+    def _apply_attack_damage(self, attacker, target):
+        # Calculate damage with some randomness and minimum 1
+        base_damage = attacker.atk
+        damage = random.randint(int(base_damage * 0.8), int(base_damage * 1.2))
+        damage = max(1, damage)
+        target.take_damage(damage)
+        self.add_to_log(f"{attacker.name} attacks {target.name} for {damage} damage!")
+        if not target.is_alive():
+            self.add_to_log(f"{target.name} has been defeated!")
+            carbon_added = target.max_hp
+            if self.current_turn == 0:
+                self.player_carbon += carbon_added
+                self.add_to_log(f"Player carbon +{carbon_added} (total: {self.player_carbon})")
+            else:
+                self.enemy_carbon += carbon_added
+                self.add_to_log(f"Enemy carbon +{carbon_added} (total: {self.enemy_carbon})")
+
+    def _build_jaw_surfaces(self, width, height, num_teeth):
+        def create_jaw_surface(w, h, n, inverted=False):
+            surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            tooth_width = max(1, w // max(1, n))
+            points = []
+            for i in range(n):
+                x_start = i * tooth_width
+                if inverted:
+                    points.append((x_start, 0))
+                    points.append((x_start + tooth_width // 2, h))
+                    points.append((x_start + tooth_width, 0))
+                else:
+                    points.append((x_start, h))
+                    points.append((x_start + tooth_width // 2, 0))
+                    points.append((x_start + tooth_width, h))
+            if points:
+                pygame.draw.polygon(surf, (255, 255, 255, 220), points)
+            return surf
+        return create_jaw_surface(width, height, num_teeth, inverted=True), create_jaw_surface(width, height, num_teeth, inverted=False)
+
+    def _compute_attack_render_pos(self):
+        a = self.attack_anim
+        if not a['active']:
+            return None
+        ax, ay = a['attacker_start']
+        move_frames = a['move_frames']
+        stay_frames = a['stay_frames']
+        return_frames = a['return_frames']
+        if a['elapsed'] <= move_frames:
+            t = a['elapsed'] / move_frames
+            x = ax + a['dir'] * a['peak_offset'] * math.sin(t * math.pi / 2)
+            y = ay - a['height'] * math.sin(t * math.pi)
+        elif a['elapsed'] <= move_frames + stay_frames:
+            x = ax + a['dir'] * a['peak_offset']
+            y = ay
+        else:
+            t = (a['elapsed'] - move_frames - stay_frames) / return_frames
+            if t > 1:
+                t = 1
+            x = ax + a['dir'] * a['peak_offset'] * (1 - t)
+            y = ay
+        return (x, y)
+
+    def _draw_attacker_with_animation(self, surface):
+        a = self.attack_anim
+        if not a['active']:
+            return False
+        attacker = a['attacker']
+        pos = self._compute_attack_render_pos()
+        if not pos:
+            return False
+        x, y = pos
+        # Draw attacker image centered at (x, y)
+        img = attacker.image
+        rect = img.get_rect(center=(int(x), int(y)))
+        surface.blit(img, rect)
+        # Draw health bar at animated position
+        self.draw_health_bar(surface, attacker, int(x) - 30, int(y) - 50)
+        # Bite effect during forward peak
+        move_frames = a['move_frames']
+        if a['elapsed'] <= move_frames:
+            t = a['elapsed'] / move_frames
+            if 0.45 <= t <= 0.65:
+                jaw_offset = 30 * (1 - (t - 0.45) / 0.2)
+                if a['dir'] == 1:
+                    upper_rect = self._bite_upper.get_rect(midbottom=(rect.right + 10, rect.centery - jaw_offset))
+                    lower_rect = self._bite_lower.get_rect(midtop=(rect.right + 10, rect.centery + jaw_offset))
+                else:
+                    upper_rect = self._bite_upper.get_rect(midbottom=(rect.left - 10, rect.centery - jaw_offset))
+                    lower_rect = self._bite_lower.get_rect(midtop=(rect.left - 10, rect.centery + jaw_offset))
+                surface.blit(self._bite_upper, upper_rect.topleft)
+                surface.blit(self._bite_lower, lower_rect.topleft)
+        return True
     def draw_health_bar(self, surface, dino, x, y, width=60, height=8):
         """Draw a health bar for a dinosaur"""
         if not hasattr(dino, 'max_hp'):
@@ -355,18 +475,19 @@ class BattleSystem:
         pygame.draw.line(surface, (139, 69, 19), (self.screen_width//2, 0), 
                         (self.screen_width//2, self.screen_height), 4)
         
-        # Draw teams
+        # Draw teams (skip normal draw for animated attacker and draw it once with animation)
+        animated_drawn = self._draw_attacker_with_animation(surface)
+        animated_attacker = self.attack_anim['attacker'] if animated_drawn else None
+        
         for dino in self.player_team.dinosaurs:
-            if dino.is_alive():
+            if dino.is_alive() and dino is not animated_attacker:
                 dino.draw(surface)
-                # Draw health bar
                 x, y = dino.pos
                 self.draw_health_bar(surface, dino, x - 30, y - 50)
         
         for dino in self.enemy_team.dinosaurs:
-            if dino.is_alive():
+            if dino.is_alive() and dino is not animated_attacker:
                 dino.draw(surface)
-                # Draw health bar
                 x, y = dino.pos
                 self.draw_health_bar(surface, dino, x - 30, y - 50)
         
