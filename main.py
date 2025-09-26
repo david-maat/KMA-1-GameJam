@@ -89,7 +89,7 @@ def menu_screen(screen):
     subtitle_font = pygame.font.SysFont("comicsansms", 36)  # Comic Sans for subtitle
 
     # Main title text
-    title_text = "Title"
+    title_text = "Fossil Fighters"
     title_shadow = title_font.render(title_text, True, (0, 0, 0))  # Black shadow
     title_main = title_font.render(title_text, True, (255, 255, 255))  # White text
 
@@ -177,21 +177,74 @@ def team_select_screen(screen):
 
 
 def result_screen(screen, team):
-
-
     global player_coins
     font = pygame.font.SysFont("comicsansms", 72, bold=True)  # Large bold font
 
+    # Simple fade-in timer (you'll need to initialize this elsewhere)
+    if not hasattr(result_screen, 'fade_timer'):
+        result_screen.fade_timer = 0
+    result_screen.fade_timer += 1
 
-    # Classic victory/defeat colors
+    # Calculate fade alpha (0 to 255 over 60 frames)
+    fade_alpha = min(255, result_screen.fade_timer * 10)
+
+    # Load and display background images for victory/defeat only
     if battle_system.battle_result == "player_wins":
-        screen.fill((0, 50, 0))  # Dark green background
+        # Load background images
+        try:
+            classic_img = pygame.image.load("assets/classic.jpg")
+            desert_img = pygame.image.load("assets/desert.jpg")
+
+            # Scale images to fit half screen each
+            screen_width, screen_height = screen.get_size()
+            classic_img = pygame.transform.scale(classic_img, (screen_width // 2, screen_height))
+            desert_img = pygame.transform.scale(desert_img, (screen_width // 2, screen_height))
+
+            # Draw background images
+            screen.blit(classic_img, (0, 0))  # Left side
+            screen.blit(desert_img, (screen_width // 2, 0))  # Right side
+
+            # Dark semi-transparent overlay
+            overlay = pygame.Surface((screen_width, screen_height))
+            overlay.set_alpha(180)  # Less transparent
+            overlay.fill((0, 0, 0))  # Black overlay
+            screen.blit(overlay, (0, 0))
+
+        except pygame.error:
+            # Fallback to original dark green if images can't be loaded
+            screen.fill((0, 50, 0))
+
         result_text = "VICTORY!"
-        result_color = (144, 238, 144)  # Gold text
+        result_color = (50, 180, 50)
+
     elif battle_system.battle_result == "enemy_wins":
-        screen.fill((50, 0, 0))  # Dark red background
+        # Load background images
+        try:
+            classic_img = pygame.image.load("assets/classic.jpg")
+            desert_img = pygame.image.load("assets/desert.jpg")
+
+            # Scale images to fit half screen each
+            screen_width, screen_height = screen.get_size()
+            classic_img = pygame.transform.scale(classic_img, (screen_width // 2, screen_height))
+            desert_img = pygame.transform.scale(desert_img, (screen_width // 2, screen_height))
+
+            # Draw background images
+            screen.blit(classic_img, (0, 0))  # Left side
+            screen.blit(desert_img, (screen_width // 2, 0))  # Right side
+
+            # Dark semi-transparent overlay
+            overlay = pygame.Surface((screen_width, screen_height))
+            overlay.set_alpha(180)  # Less transparent
+            overlay.fill((0, 0, 0))  # Black overlay
+            screen.blit(overlay, (0, 0))
+
+        except pygame.error:
+            # Fallback to original dark red if images can't be loaded
+            screen.fill((50, 0, 0))
+
         result_text = "DEFEAT!"
         result_color = (255, 50, 50)  # Bright red text
+
     elif battle_system.battle_result == "world_ends":
         screen.fill((20, 20, 20))  # Dark gray
         result_text = "WORLD ENDS!"
@@ -201,14 +254,16 @@ def result_screen(screen, team):
         result_text = "BATTLE COMPLETE"
         result_color = (255, 255, 0)
 
-    # Draw a simple glowing rectangle behind the text for a "classic" effect
+    # Draw text with fade-in effect
     text_surface = font.render(result_text, True, result_color)
+    text_surface.set_alpha(fade_alpha)  # Apply fade
     text_rect = text_surface.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2))
 
-    # Optional glowing effect
+    # Optional glowing effect with fade
     glow_color = (255, 255, 255, 50)  # semi-transparent white
     for offset in range(5, 0, -1):
         glow_surface = font.render(result_text, True, glow_color)
+        glow_surface.set_alpha(fade_alpha)  # Apply fade to glow too
         glow_rect = glow_surface.get_rect(center=(text_rect.centerx, text_rect.centery))
         screen.blit(glow_surface, (glow_rect.x - offset, glow_rect.y - offset))
         screen.blit(glow_surface, (glow_rect.x + offset, glow_rect.y + offset))
