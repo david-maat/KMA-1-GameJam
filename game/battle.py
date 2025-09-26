@@ -1,4 +1,4 @@
-from core.team import Team
+from game.team import Team
 
 class Battle:
     #rewrite so team a and team b are of the class Team

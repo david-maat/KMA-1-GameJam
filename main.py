@@ -7,6 +7,7 @@ from game import ui
 
 # Init
 pygame.init()
+pygame.font.init() 
 breedte, hoogte = 1200, 700
 screen = pygame.display.set_mode((breedte, hoogte))
 pygame.display.set_caption("Dino Foodprint Game")

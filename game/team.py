@@ -1,4 +1,4 @@
-from core.dinosaur import Dinosaur
+from game.dinosaur import DinoSprite as Dinosaur
 class Team:
     def __init__(self, dinosaurs: list[Dinosaur]):
         self.dinosaurs = dinosaurs
