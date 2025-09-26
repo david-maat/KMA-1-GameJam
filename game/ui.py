@@ -50,21 +50,40 @@ def create_enemy_team():
 
 # --- Helpers ---
 def position_teams(player_team, enemy_team, path_y, screen_width):
-    # Links (player)
-    if player_team:
-        left_margin = 80
-        right_margin = screen_width // 2 - 80
-        spacing_left = (right_margin - left_margin) // (len(player_team) - 1 if len(player_team) > 1 else 1)
-        for i, dino in enumerate(player_team):
-            dino.pos = (left_margin + i * spacing_left, path_y)
+    def place_team(team, x_start, x_end, path_y):
+        if not team:
+            return
 
-    # Rechts (enemy)
-    if enemy_team:
-        left_margin = screen_width // 2 + 80
-        right_margin = screen_width - 80
-        spacing_right = (right_margin - left_margin) // (len(enemy_team) - 1 if len(enemy_team) > 1 else 1)
-        for i, dino in enumerate(enemy_team):
-            dino.pos = (left_margin + i * spacing_right, path_y)
+        available_width = x_end - x_start
+        max_size = 80  # standaard grootte
+        min_size = 40  # minimum grootte als er te veel dino's zijn
+        count = len(team)
+
+        # bereken de maximale ruimte per dino
+        space_per_dino = available_width // count
+
+        # bepaal schaal: kleiner maken als er te weinig plaats is
+        dino_size = max(min_size, min(max_size, space_per_dino - 10))
+
+        # schaal alle dino's correct
+        for dino in team:
+            if dino.size != dino_size:
+                dino.size = dino_size
+                path = os.path.join(ASSETS_DIR, dino.image_file)
+                img = pygame.image.load(path).convert_alpha()
+                dino.image = pygame.transform.scale(img, (dino.size, dino.size))
+                if hasattr(dino, "flip") and dino.flip:
+                    dino.image = pygame.transform.flip(dino.image, True, False)
+
+        spacing = available_width // (count - 1 if count > 1 else 1)
+        for i, dino in enumerate(team):
+            dino.pos = (x_start + i * spacing, path_y)
+
+    # Links team
+    place_team(player_team, 100, screen_width // 2 - 100, path_y)
+
+    # Rechts team
+    place_team(enemy_team, screen_width // 2 + 100, screen_width - 100, path_y)
 
 # --- Battle scherm tekenen ---
 def draw_battle(screen, player_team, enemy_team, vs_font, label_font, path_y):

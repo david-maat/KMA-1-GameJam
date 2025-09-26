@@ -184,10 +184,9 @@ def draw(screen, player_coins=None):
     for dino in shop_dinos:
         dino.draw(screen)
 
-        # Visual feedback for affordability
+        # visual feedback als speler onvoldoende coins heeft
         if player_coins is not None and hasattr(dino, 'price'):
             if player_coins < dino.price:
-                # Darken unaffordable dinosaurs
                 overlay = pygame.Surface((dino.size * 2, dino.size * 2))
                 overlay.set_alpha(128)
                 overlay.fill((0, 0, 0))
@@ -196,29 +195,39 @@ def draw(screen, player_coins=None):
     for dino in arena_team:
         dino.draw(screen)
 
-    # Draw shop prices
+    # prijzen tekenen
     draw_shop_prices(screen, shop_y)
-
-    # Draw labels for arena and shop
-    arena_label = font.render("ARENA", True, (255, 255, 255))
-    screen.blit(arena_label, (10, arena_y - 30))
-
-    shop_label = font.render("SHOP", True, (255, 255, 255))
-    screen.blit(shop_label, (10, shop_y - 30))
 
     # ronde nummer
     round_text = font.render(f"Ronde: {round_counter}", True, (0, 0, 0))
     screen.blit(round_text, (10, 10))
 
-    # Arena count
+    # arena count
     arena_count_text = font.render(f"Arena: {len(arena_team)}/{MAX_ARENA}", True, (0, 0, 0))
     screen.blit(arena_count_text, (10, 30))
 
-    # start knop (bovenaan in het midden) - color based on arena team
+    # start knop
     button_color = (0, 200, 0) if len(arena_team) > 0 else (100, 100, 100)
     pygame.draw.rect(screen, button_color, start_button, border_radius=10)
     text = font.render("START BATTLE", True, (255, 255, 255))
     screen.blit(text, (start_button.centerx - text.get_width() // 2,
                        start_button.centery - text.get_height() // 2))
+
+    # --- COINS DISPLAY ---
+    if player_coins is not None:
+        coin_font = pygame.font.SysFont("Arial", 28, bold=True)
+        coin_text = coin_font.render(f"Coins: {player_coins}", True, (255, 215, 0))
+        coin_shadow = coin_font.render(f"Coins: {player_coins}", True, (0, 0, 0))
+
+        # zet naast de startknop
+        x = start_button.right + 350
+        y = start_button.top + (start_button.height - coin_text.get_height()) // 2
+
+        screen.blit(coin_shadow, (x + 2, y + 2))
+        screen.blit(coin_text, (x, y))
+
+        # klein munt-icoon
+        pygame.draw.circle(screen, (255, 215, 0), (x - 20, y + 15), 10)
+        pygame.draw.circle(screen, (218, 165, 32), (x - 20, y + 15), 10, 2)
 
     return arena_y, shop_y
