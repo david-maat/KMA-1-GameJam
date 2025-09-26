@@ -465,38 +465,50 @@ class BattleSystem:
         # Label
         enemy_label = self.font.render(f"Enemy Carbon: {self.enemy_carbon}/{self.max_carbon}", True, (255, 255, 255))
         surface.blit(enemy_label, (enemy_x, enemy_y - 25))
-    
+
     def draw(self, surface):
         """Draw the battle scene"""
-        # Clear screen with battlefield background
-        surface.fill((101, 67, 33))  # Brown battlefield
-        
+        # Load background images
+        classic_bg = pygame.image.load("assets/classic.jpg").convert()
+        desert_bg = pygame.image.load("assets/desert.jpg").convert()
+
+        # Scale backgrounds to half the screen width and full height
+        classic_bg = pygame.transform.scale(classic_bg, (self.screen_width // 2, self.screen_height))
+        desert_bg = pygame.transform.scale(desert_bg, (self.screen_width // 2, self.screen_height))
+
+        # Blit backgrounds
+        surface.blit(classic_bg, (0, 0))  # left half
+        surface.blit(desert_bg, (self.screen_width // 2, 0))  # right half
+
         # Draw battlefield elements
-        pygame.draw.line(surface, (139, 69, 19), (self.screen_width//2, 0), 
-                        (self.screen_width//2, self.screen_height), 4)
-        
+        pygame.draw.line(surface, (139, 69, 19), (self.screen_width // 2, 0),
+                         (self.screen_width // 2, self.screen_height), 4)
+
         # Draw teams (skip normal draw for animated attacker and draw it once with animation)
         animated_drawn = self._draw_attacker_with_animation(surface)
         animated_attacker = self.attack_anim['attacker'] if animated_drawn else None
-        
+
         for dino in self.player_team.dinosaurs:
             if dino.is_alive() and dino is not animated_attacker:
                 dino.draw(surface)
                 x, y = dino.pos
                 self.draw_health_bar(surface, dino, x - 30, y - 50)
-        
+
         for dino in self.enemy_team.dinosaurs:
             if dino.is_alive() and dino is not animated_attacker:
-                dino.draw(surface)
+                # Flip image horizontally
+                flipped_image = pygame.transform.flip(dino.image, True, False)
+                rect = flipped_image.get_rect(center=(int(dino.pos[0]), int(dino.pos[1])))
+                surface.blit(flipped_image, rect)
                 x, y = dino.pos
                 self.draw_health_bar(surface, dino, x - 30, y - 50)
-        
+
         # Draw carbon meters
         self.draw_carbon_meters(surface)
-        
+
         # Draw UI
         self.draw_ui(surface)
-    
+
     def draw_ui(self, surface):
         """Draw battle UI elements"""
         # Battle log background
