@@ -152,9 +152,9 @@ def draw(screen):
     screen.blit(text, (start_button.centerx - text.get_width()//2,
                        start_button.centery - text.get_height()//2))
 
-<<<<<<< HEAD
-    return arena_y, shop_y
-=======
+# <<<<<<< HEAD
+#     return arena_y, shop_y
+# =======
     return arena_y, shop_y
 
 
@@ -387,4 +387,4 @@ def draw(screen):
 #     pygame.display.flip()
 #     clock.tick(60)
 
->>>>>>> 240476efc1006eeaadf9735e72fca96afbc6cc85
+# >>>>>>> 240476efc1006eeaadf9735e72fca96afbc6cc85
