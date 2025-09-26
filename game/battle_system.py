@@ -14,8 +14,13 @@ class BattleSystem:
         self.selected_attacker = None
         self.selected_target = None
         self.animation_timer = 0
-        self.battle_result = None  # "player_wins", "enemy_wins", None
+        self.battle_result = None  # "player_wins", "enemy_wins", "world_ends", None
         self.turn_delay = 0
+        
+        # Carbon meter system
+        self.max_carbon = 20  # Maximum carbon before world ends
+        self.player_carbon = 0  # Carbon from enemy deaths
+        self.enemy_carbon = 0   # Carbon from player deaths
         
         # Battle UI elements
         self.font = pygame.font.SysFont("Arial", 24)
@@ -107,6 +112,9 @@ class BattleSystem:
         self.animation_timer = 0
         self.battle_result = None
         self.turn_delay = 0
+        # Reset carbon meters
+        self.player_carbon = 0
+        self.enemy_carbon = 0
         # Reset coin award flag
         if hasattr(self, 'coins_awarded'):
             delattr(self, 'coins_awarded')
@@ -161,6 +169,14 @@ class BattleSystem:
         
         if not target.is_alive():
             self.add_to_log(f"{target.name} has been defeated!")
+            # Add carbon based on the dead dinosaur's max HP
+            carbon_added = target.max_hp
+            if self.current_turn == 0:  # Player killed enemy dino
+                self.player_carbon += carbon_added
+                self.add_to_log(f"Player carbon +{carbon_added} (total: {self.player_carbon})")
+            else:  # Enemy killed player dino
+                self.enemy_carbon += carbon_added
+                self.add_to_log(f"Enemy carbon +{carbon_added} (total: {self.enemy_carbon})")
         
         # Start attack animation
         self.battle_phase = "attacking"
@@ -219,6 +235,14 @@ class BattleSystem:
     
     def check_battle_end(self):
         """Check if battle has ended"""
+        # Check carbon levels first - world ending takes priority
+        if self.player_carbon >= self.max_carbon or self.enemy_carbon >= self.max_carbon:
+            self.battle_result = "world_ends"
+            self.battle_phase = "battle_over"
+            self.add_to_log("CARBON OVERLOAD! The world ends!")
+            self.add_to_log("Global warming has destroyed everything!")
+            return True
+        
         player_alive = any(d.is_alive() for d in self.player_team.dinosaurs)
         enemy_alive = any(d.is_alive() for d in self.enemy_team.dinosaurs)
         
@@ -259,6 +283,67 @@ class BattleSystem:
         rect = pygame.Rect(x - size//2, y - size//2, size, size)
         pygame.draw.rect(surface, color, rect, 3)
     
+    def draw_carbon_meters(self, surface):
+        """Draw carbon meters for both players"""
+        meter_width = 200
+        meter_height = 20
+        
+        # Player carbon meter (left side)
+        player_x = 50
+        player_y = self.screen_height - 60
+        
+        # Background
+        pygame.draw.rect(surface, (50, 50, 50), (player_x, player_y, meter_width, meter_height))
+        
+        # Carbon fill
+        player_ratio = self.player_carbon / self.max_carbon if self.max_carbon > 0 else 0
+        player_ratio = max(0.0, min(1.0, player_ratio))  # clamp 0..1
+        player_fill_width = int(player_ratio * meter_width)
+        if player_fill_width > 0:
+            # Color changes from green to red as it fills
+            red = int(255 * player_ratio)
+            green = int(255 * (1 - player_ratio))
+            # Clamp color channels
+            red = max(0, min(255, red))
+            green = max(0, min(255, green))
+            color = (red, green, 0)
+            pygame.draw.rect(surface, color, (player_x, player_y, player_fill_width, meter_height))
+        
+        # Border
+        pygame.draw.rect(surface, (255, 255, 255), (player_x, player_y, meter_width, meter_height), 2)
+        
+        # Label
+        player_label = self.font.render(f"Player Carbon: {self.player_carbon}/{self.max_carbon}", True, (255, 255, 255))
+        surface.blit(player_label, (player_x, player_y - 25))
+        
+        # Enemy carbon meter (right side)
+        enemy_x = self.screen_width - meter_width - 50
+        enemy_y = self.screen_height - 60
+        
+        # Background
+        pygame.draw.rect(surface, (50, 50, 50), (enemy_x, enemy_y, meter_width, meter_height))
+        
+        # Carbon fill
+        enemy_ratio = self.enemy_carbon / self.max_carbon if self.max_carbon > 0 else 0
+        enemy_ratio = max(0.0, min(1.0, enemy_ratio))  # clamp 0..1
+        enemy_fill_width = int(enemy_ratio * meter_width)
+        if enemy_fill_width > 0:
+            # Color changes from green to red as it fills
+            red = int(255 * enemy_ratio)
+            green = int(255 * (1 - enemy_ratio))
+            # Clamp color channels
+            red = max(0, min(255, red))
+            green = max(0, min(255, green))
+            color = (red, green, 0)
+            pygame.draw.rect(surface, color, (enemy_x, enemy_y, enemy_fill_width, meter_height))
+        
+        # Border
+        pygame.draw.rect(surface, (255, 255, 255), (enemy_x, enemy_y, meter_width, meter_height), 2)
+        
+        # Label
+        enemy_label = self.font.render(f"Enemy Carbon: {self.enemy_carbon}/{self.max_carbon}", True, (255, 255, 255))
+        surface.blit(enemy_label, (enemy_x, enemy_y - 25))
+    
     def draw(self, surface):
         """Draw the battle scene"""
         # Clear screen with battlefield background
@@ -282,6 +367,9 @@ class BattleSystem:
                 # Draw health bar
                 x, y = dino.pos
                 self.draw_health_bar(surface, dino, x - 30, y - 50)
+        
+        # Draw carbon meters
+        self.draw_carbon_meters(surface)
         
         # Draw UI
         self.draw_ui(surface)

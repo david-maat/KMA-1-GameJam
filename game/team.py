@@ -8,7 +8,8 @@ class Team:
 
 
     def get_front(self) -> Dinosaur | None:
-        for dinosaur in self.dinosaurs:
+        # Attack from back to front - return last alive dinosaur
+        for dinosaur in reversed(self.dinosaurs):
             if dinosaur.is_alive():
                 return dinosaur
         return None
