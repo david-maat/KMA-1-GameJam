@@ -4,6 +4,8 @@ import random
 from game.gamestate import GameState
 from game import rendering
 from game import ui
+from game.battle_system import BattleSystem
+from game.team import Team
 
 # Init
 pygame.init()
@@ -17,6 +19,9 @@ current_state = GameState.MENU
 gekozen_team = None
 player_team = []
 enemy_team = []
+
+# Initialize battle system
+battle_system = BattleSystem(breedte, hoogte)
 
 # COIN SYSTEM
 player_coins = 100  # Starting coins
@@ -77,17 +82,34 @@ def team_select_screen(screen):
 def result_screen(screen, team):
     global player_coins
 
-    screen.fill((50, 50, 0))
-    tekst = font.render(f"RESULT SCREEN - Team: {team}", True, (255, 255, 255))
-    screen.blit(tekst, (100, hoogte // 2 - 24))
+    # Different background colors based on battle result
+    if battle_system.battle_result == "player_wins":
+        screen.fill((0, 50, 0))  # Green for victory
+        result_text = "VICTORY!"
+        result_color = (0, 255, 0)
+    elif battle_system.battle_result == "enemy_wins":
+        screen.fill((50, 0, 0))  # Red for defeat
+        result_text = "DEFEAT!"
+        result_color = (255, 0, 0)
+    else:
+        screen.fill((50, 50, 0))  # Yellow for unknown
+        result_text = "BATTLE COMPLETE"
+        result_color = (255, 255, 0)
+
+    # Display battle result
+    large_font = pygame.font.SysFont(None, 72, bold=True)
+    result_surface = large_font.render(result_text, True, result_color)
+    screen.blit(result_surface, (breedte // 2 - result_surface.get_width() // 2, hoogte // 2 - 100))
+    
+    # Display team info
+    team_text = font.render(f"Team: {team}", True, (255, 255, 255))
+    screen.blit(team_text, (100, hoogte // 2 - 24))
+    
     instructie = font.render("Druk ENTER om terug naar menu te gaan", True, (255, 255, 0))
     screen.blit(instructie, (50, hoogte // 2 + 50))
 
-    # Award coins for battle completion
-    coins_earned = random.randint(20, 50)
-    player_coins += coins_earned
-
-    coins_text = font.render(f"Coins verdiend: +{coins_earned}", True, (255, 215, 0))
+    # Show coins earned (already awarded during battle)
+    coins_text = font.render("Coins earned from battle!", True, (255, 215, 0))
     screen.blit(coins_text, (50, hoogte // 2 + 100))
 
     draw_coin_display(screen)
@@ -146,9 +168,23 @@ while running:
             elif current_state == GameState.TEAM_SELECT and event.key == pygame.K_RETURN:
                 current_state = GameState.SHOP
             elif current_state == GameState.BATTLE and event.key == pygame.K_RETURN:
-                current_state = GameState.RESULT
+                if battle_system.battle_phase == "battle_over":
+                    current_state = GameState.RESULT
             elif current_state == GameState.RESULT and event.key == pygame.K_RETURN:
-                current_state = GameState.MENU
+                # Return to shop and reflect battle results
+                # Remove dead dinos from arena team
+                try:
+                    rendering.arena_team = [d for d in rendering.arena_team if getattr(d, 'hp', 1) > 0]
+                except Exception:
+                    pass
+                # Reorder arena positions for a clean layout
+                try:
+                    # If we don't have a cached arena_y, compute the same as rendering.draw
+                    local_arena_y = arena_y if arena_y else int(hoogte * 0.65) - 100
+                    rendering.reorder_arena(local_arena_y)
+                except Exception:
+                    pass
+                current_state = GameState.SHOP
                 gekozen_team = None
 
             # Cheat codes for testing (remove in final version)
@@ -157,6 +193,9 @@ while running:
             elif event.key == pygame.K_x:  # Press 'X' to spend 10 coins (for testing)
                 spend_coins(10)
 
+        if event.type == pygame.MOUSEBUTTONDOWN and current_state == GameState.BATTLE:
+            battle_system.handle_click(event.pos)
+        
         if event.type == pygame.MOUSEBUTTONDOWN and current_state == GameState.TEAM_SELECT:
             x, y = event.pos
             if x < breedte // 2:
@@ -175,10 +214,18 @@ while running:
                 if result == "start":
                     # neem arena team als player team
                     player_team = rendering.arena_team
+                    
+                    # Convert arena team to Team object for battle system
+                    player_team_obj = Team(player_team)
+                    
+                    # bepaal wie begint (0 = player, 1 = enemy)
+                    starting_player = random.choice([0, 1])
+                    # Start battle with random enemy team and selected starter
+                    battle_system.start_battle(player_team_obj, starting_player=starting_player)
 
-                    # bepaal wie begint
-                    starting_player = random.choice([1, 2])
-                    transition_message = f"Player {starting_player} begint!"
+                    # Transition text uses 1/2 for readability
+                    human_player_num = 1 if starting_player == 0 else 2
+                    transition_message = f"Player {human_player_num} begint!"
                     transition_timer = 0
 
                     current_state = GameState.TRANSITION
@@ -193,7 +240,20 @@ while running:
     elif current_state == GameState.TRANSITION:
         transition_screen(screen)
     elif current_state == GameState.BATTLE:
-        ui.draw_battle(screen, player_team, enemy_team, vs_font, label_font, PATH_Y)
+        battle_system.update()
+        battle_system.draw(screen)
+        
+        # Check if battle just ended and award coins once
+        if battle_system.battle_phase == "battle_over" and not hasattr(battle_system, 'coins_awarded'):
+            if battle_system.battle_result == "player_wins":
+                # Award extra coins for victory
+                coins_earned = random.randint(30, 70)
+                add_coins(coins_earned)
+            elif battle_system.battle_result == "enemy_wins":
+                # Small consolation prize
+                coins_earned = random.randint(5, 15)
+                add_coins(coins_earned)
+            battle_system.coins_awarded = True  # Mark as awarded
     elif current_state == GameState.RESULT:
         result_screen(screen, gekozen_team)
 

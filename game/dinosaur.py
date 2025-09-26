@@ -9,6 +9,7 @@ class DinoSprite:
     def __init__(self, name, hp, atk, oil_value, image_file, pos):
         self.name = name
         self.hp = hp
+        self.max_hp = hp  # Store original HP for health bar calculations
         self.atk = atk
         self.oil_value = oil_value
         self.size = 80
@@ -19,16 +20,16 @@ class DinoSprite:
         img = pygame.image.load(path).convert_alpha()
         self.image = pygame.transform.scale(img, (self.size, self.size))
 
-        def is_alive(self):
-            return self.hp > 0
-    
-        def take_damage(self, damage):
-            self.hp -= damage
-            if self.hp < 0:
-                self.hp = 0
-    
-        def attack_target(self, target):
-            target.take_damage(self.atk)
+    def is_alive(self):
+        return self.hp > 0
+
+    def take_damage(self, damage):
+        self.hp -= damage
+        if self.hp < 0:
+            self.hp = 0
+
+    def attack_target(self, target):
+        target.take_damage(self.atk)
 
     def draw(self, surface):
         x, y = self.pos
