@@ -29,7 +29,7 @@ coin_font = pygame.font.SysFont("Arial", 36, bold=True)
 
 # CARBON TRACKING SYSTEM
 total_player_carbon = 0  # Persistent carbon across all battles
-total_enemy_carbon = 0   # Persistent carbon across all battles
+total_enemy_carbon = 0  # Persistent carbon across all battles
 
 # init rendering (team build)
 rendering.init_rendering()
@@ -60,6 +60,33 @@ def draw_coin_display(screen):
     # Draw coin icon (simple circle)
     pygame.draw.circle(screen, (255, 215, 0), (x - 30, y + 18), 12)
     pygame.draw.circle(screen, (218, 165, 32), (x - 30, y + 18), 12, 2)
+
+
+def draw_battle_background(screen):
+    """Draw the battle background with half classic.jpg and half desert.jpg with transparent overlay"""
+    try:
+        # Load and scale the background images
+        classic_img = pygame.image.load("assets/classic.jpg")
+        desert_img = pygame.image.load("assets/desert.jpg")
+
+        # Scale images to fit half screen each
+        screen_width, screen_height = screen.get_size()
+        classic_img = pygame.transform.scale(classic_img, (screen_width // 2, screen_height))
+        desert_img = pygame.transform.scale(desert_img, (screen_width // 2, screen_height))
+
+        # Draw background images
+        screen.blit(classic_img, (0, 0))  # Left side
+        screen.blit(desert_img, (screen_width // 2, 0))  # Right side
+
+        # Create and draw transparent overlay with alpha 180
+        overlay = pygame.Surface((screen_width, screen_height))
+        overlay.set_alpha(180)
+        overlay.fill((0, 0, 0))  # Black overlay
+        screen.blit(overlay, (0, 0))
+
+    except pygame.error:
+        # Fallback if images can't be loaded - use original background
+        screen.fill((0, 100, 0))  # Green fallback
 
 
 def menu_screen(screen):
@@ -136,7 +163,7 @@ def team_select_screen(screen):
     # Add main title text
     title_font = pygame.font.SysFont("comicsansms", 60, bold=True)
     title_text = "Select Your Team"
-    title_shadow = title_font.render(title_text, True, (0,0, 0))  # Dark gray shadow
+    title_shadow = title_font.render(title_text, True, (0, 0, 0))  # Dark gray shadow
     title_main = title_font.render(title_text, True, (255, 255, 255))  # White text
 
     # Center the title at top
@@ -318,11 +345,11 @@ def can_afford_anything():
     for dino in rendering.shop_dinos:
         if hasattr(dino, 'price'):
             min_price = min(min_price, dino.price)
-    
+
     # If no prices found, use default minimum
     if min_price == float('inf'):
         min_price = 15  # Default minimum price
-    
+
     return player_coins >= min_price
 
 
@@ -334,42 +361,42 @@ def carbon_to_tonnes(carbon_points):
 
 def game_over_screen(screen):
     """Display game over screen with carbon footprint overview"""
-    
+
     screen.fill((20, 20, 20))  # Dark background
-    
+
     # Title
     title_font = pygame.font.SysFont(None, 72, bold=True)
     title_text = title_font.render("GAME OVER", True, (255, 100, 100))
     screen.blit(title_text, (breedte // 2 - title_text.get_width() // 2, 100))
-    
+
     # Subtitle
     subtitle_font = pygame.font.SysFont(None, 36)
     subtitle_text = subtitle_font.render("Not enough coins to continue!", True, (255, 255, 255))
     screen.blit(subtitle_text, (breedte // 2 - subtitle_text.get_width() // 2, 180))
-    
+
     # Carbon footprint overview
     carbon_font = pygame.font.SysFont(None, 48, bold=True)
     overview_font = pygame.font.SysFont(None, 32)
-    
+
     # Header
     carbon_header = carbon_font.render("CARBON FOOTPRINT OVERVIEW", True, (255, 200, 0))
     screen.blit(carbon_header, (breedte // 2 - carbon_header.get_width() // 2, 250))
-    
+
     # Player carbon
     player_tonnes = carbon_to_tonnes(total_player_carbon)
     player_text = overview_font.render(f"Your Carbon Emissions: {player_tonnes:.1f} tonnes CO2", True, (255, 100, 100))
     screen.blit(player_text, (breedte // 2 - player_text.get_width() // 2, 320))
-    
+
     # Enemy carbon
     enemy_tonnes = carbon_to_tonnes(total_enemy_carbon)
     enemy_text = overview_font.render(f"Enemy Carbon Emissions: {enemy_tonnes:.1f} tonnes CO2", True, (255, 100, 100))
     screen.blit(enemy_text, (breedte // 2 - enemy_text.get_width() // 2, 360))
-    
+
     # Total carbon
     total_tonnes = player_tonnes + enemy_tonnes
     total_text = carbon_font.render(f"TOTAL: {total_tonnes:.1f} tonnes CO2", True, (255, 50, 50))
     screen.blit(total_text, (breedte // 2 - total_text.get_width() // 2, 420))
-    
+
     # Environmental message
     if total_tonnes > 10:
         message = "Catastrophic environmental damage!"
@@ -380,14 +407,14 @@ def game_over_screen(screen):
     else:
         message = "Moderate environmental impact"
         color = (255, 200, 0)
-    
+
     message_text = overview_font.render(message, True, color)
     screen.blit(message_text, (breedte // 2 - message_text.get_width() // 2, 480))
-    
+
     # Instructions
     instruction_text = overview_font.render("Press ENTER to return to menu", True, (255, 255, 255))
     screen.blit(instruction_text, (breedte // 2 - instruction_text.get_width() // 2, 550))
-    
+
     # Show current coins
     draw_coin_display(screen)
 
@@ -413,7 +440,7 @@ while running:
                 # Add battle carbon to persistent totals
                 total_player_carbon += battle_system.player_carbon
                 total_enemy_carbon += battle_system.enemy_carbon
-                
+
                 # Return to shop and reflect battle results
                 # Remove dead dinos from arena team
                 try:
@@ -427,7 +454,7 @@ while running:
                     rendering.reorder_arena(local_arena_y)
                 except Exception:
                     pass
-                
+
                 # Check if player can afford anything
                 if not can_afford_anything():
                     current_state = GameState.GAME_OVER
@@ -451,7 +478,7 @@ while running:
 
         if event.type == pygame.MOUSEBUTTONDOWN and current_state == GameState.BATTLE:
             battle_system.handle_click(event.pos)
-        
+
         if event.type == pygame.MOUSEBUTTONDOWN and current_state == GameState.TEAM_SELECT:
             x, y = event.pos
             if x < breedte // 2:
@@ -470,10 +497,10 @@ while running:
                 if result == "start":
                     # neem arena team als player team
                     player_team = rendering.arena_team
-                    
+
                     # Convert arena team to Team object for battle system
                     player_team_obj = Team(player_team)
-                    
+
                     # bepaal wie begint (0 = player, 1 = enemy)
                     starting_player = random.choice([0, 1])
                     # Start battle with random enemy team and selected starter
@@ -484,7 +511,7 @@ while running:
 
                     # Transition text uses 1/2 for readability
                     human_player_num = 1 if starting_player == 0 else 2
-                    transition_message = f"Player {human_player_num} begint!"
+                    transition_message = f"Player {human_player_num} begins!"
                     transition_timer = 0
 
                     current_state = GameState.TRANSITION
@@ -499,9 +526,17 @@ while running:
     elif current_state == GameState.TRANSITION:
         transition_screen(screen)
     elif current_state == GameState.BATTLE:
+        # Update battle system first
         battle_system.update()
+
+        # Draw our custom background (battle system might overwrite this)
+        draw_battle_background(screen)
+
+        # Draw battle system, but try to preserve our background
+        # If battle_system has a draw method that clears screen, this won't work
+        # In that case, we need to modify the battle_system.py file directly
         battle_system.draw(screen)
-        
+
         # Check if battle just ended and award coins once
         if battle_system.battle_phase == "battle_over" and not hasattr(battle_system, 'coins_awarded'):
             if battle_system.battle_result == "player_wins":
