@@ -18,6 +18,10 @@ gekozen_team = None
 player_team = []
 enemy_team = []
 
+# COIN SYSTEM
+player_coins = 100  # Starting coins
+coin_font = pygame.font.SysFont("Arial", 36, bold=True)
+
 # init rendering (team build)
 rendering.init_rendering()
 
@@ -30,6 +34,7 @@ PATH_Y = hoogte // 2
 # transition variabelen
 transition_message = ""
 transition_timer = 0
+
 
 # Laad de afbeeldingen buiten de functie (één keer bij opstarten)
 bg_blauw = pygame.image.load("assets/classic.jpg")
@@ -111,12 +116,43 @@ def team_select_screen(screen):
     screen.blit(tekst_rechts, (3 * breedte // 4 - 150, hoogte // 2 - 28))
 
 
+def draw_coin_display(screen):
+    """Draw the coin counter in the top right corner"""
+    coin_text = coin_font.render(f"Coins: {player_coins}", True, (255, 215, 0))  # Gold color
+    coin_shadow = coin_font.render(f"Coins: {player_coins}", True, (0, 0, 0))  # Black shadow
+
+    # Position in top right with some padding
+    x = breedte - coin_text.get_width() - 20
+    y = 20
+
+    # Draw shadow slightly offset
+    screen.blit(coin_shadow, (x + 2, y + 2))
+    screen.blit(coin_text, (x, y))
+
+    # Draw coin icon (simple circle)
+    pygame.draw.circle(screen, (255, 215, 0), (x - 30, y + 18), 12)
+    pygame.draw.circle(screen, (218, 165, 32), (x - 30, y + 18), 12, 2)
+
+
+
 def result_screen(screen, team):
+    global player_coins
+
     screen.fill((50, 50, 0))
     tekst = font.render(f"RESULT SCREEN - Team: {team}", True, (255, 255, 255))
     screen.blit(tekst, (100, hoogte // 2 - 24))
     instructie = font.render("Druk ENTER om terug naar menu te gaan", True, (255, 255, 0))
     screen.blit(instructie, (50, hoogte // 2 + 50))
+
+    # Award coins for battle completion
+    coins_earned = random.randint(20, 50)
+    player_coins += coins_earned
+
+    coins_text = font.render(f"Coins verdiend: +{coins_earned}", True, (255, 215, 0))
+    screen.blit(coins_text, (50, hoogte // 2 + 100))
+
+    draw_coin_display(screen)
+
 
 def transition_screen(screen):
     global transition_timer, current_state
@@ -129,11 +165,32 @@ def transition_screen(screen):
     font_big = pygame.font.SysFont("comic sans ms", 60, bold=True)
     text = font_big.render(transition_message, True, (255, 255, 255))
     text.set_alpha(alpha)
-    screen.blit(text, (breedte//2 - text.get_width()//2, hoogte//2 - text.get_height()//2))
+    screen.blit(text, (breedte // 2 - text.get_width() // 2, hoogte // 2 - text.get_height() // 2))
 
     # na 2 seconden naar battle
     if transition_timer > 120:
         current_state = GameState.BATTLE
+
+
+def can_afford(cost):
+    """Check if player has enough coins"""
+    return player_coins >= cost
+
+
+def spend_coins(amount):
+    """Spend coins if player has enough"""
+    global player_coins
+    if can_afford(amount):
+        player_coins -= amount
+        return True
+    return False
+
+
+def add_coins(amount):
+    """Add coins to player's total"""
+    global player_coins
+    player_coins += amount
+
 
 # Main loop
 running = True
@@ -155,6 +212,12 @@ while running:
                 current_state = GameState.MENU
                 gekozen_team = None
 
+            # Cheat codes for testing (remove in final version)
+            elif event.key == pygame.K_c:  # Press 'C' to add 100 coins
+                add_coins(100)
+            elif event.key == pygame.K_x:  # Press 'X' to spend 10 coins (for testing)
+                spend_coins(10)
+
         if event.type == pygame.MOUSEBUTTONDOWN and current_state == GameState.TEAM_SELECT:
             x, y = event.pos
             if x < breedte // 2:
@@ -166,7 +229,10 @@ while running:
         # events doorgeven aan rendering
         if current_state == GameState.SHOP:
             if arena_y and shop_y:
-                result = rendering.handle_event(event, arena_y, shop_y)
+                # Pass coin functions to rendering system
+                result = rendering.handle_event(event, arena_y, shop_y,
+                                                coin_check=can_afford,
+                                                coin_spend=spend_coins)
                 if result == "start":
                     # neem arena team als player team
                     player_team = rendering.arena_team
@@ -184,7 +250,7 @@ while running:
     elif current_state == GameState.TEAM_SELECT:
         team_select_screen(screen)
     elif current_state == GameState.SHOP:
-        arena_y, shop_y = rendering.draw(screen)
+        arena_y, shop_y = rendering.draw(screen, player_coins)  # Pass coins to shop
     elif current_state == GameState.TRANSITION:
         transition_screen(screen)
     elif current_state == GameState.BATTLE:
